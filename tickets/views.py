@@ -53,25 +53,28 @@ class TicketViewSet(ModelViewSet):
             queryset= queryset.filter(
                 created_by=self.request.user
             )
+        element_search = {}
+
         status = self.request.query_params.get("status")
         if status:
-            queryset = queryset.filter(status=status)
-            
+              element_search["status"] = status.upper()
+
         priority = self.request.query_params.get("priority")
         if priority:
-            queryset = queryset.filter(priority=priority)
-        
+           element_search["priority"] = priority.upper()
+
         assigned_to = self.request.query_params.get("assigned_to")
         if assigned_to:
-            queryset = queryset.filter(
-                assigned_to_id=assigned_to
-            )
+            element_search["assigned_to_id"] = assigned_to
+
+        queryset = queryset.filter(**element_search)
         
         tags = self.request.query_params.getlist("tag")
-        if tags:
+        print("Tags:", tags)
+        if tags:   
             queryset = queryset.filter(
                 tags__name__in=tags
-            )
+           ).distinct()
         
         search = self.request.query_params.get("search")
         if search:
@@ -192,53 +195,67 @@ class ListCreateAttachmentView(ListCreateAPIView):
 
                   
 class Statistics(APIView):
-    
- def get(self,request):
-        
-    total_ticket=Ticket.objects.count()
-    
-    by_status=Ticket.objects.aggregate(
-                  open_status=Count("id",filter=(Q(status="OPEN"))),
-                  IN_status=Count("id",filter=(Q(status="IN_PROGRESS"))),
-                  DONE_status=Count("id",filter=(Q(status="DONE"))),
-                  CLOSED_status=Count("id",filter=(Q(status="CLOSED"))))
-    
-    by_priority=Ticket.objects.aggregate(
-                  low_priority=Count("id",filter=(Q(priority="LOW"))),
-                  high_priority=Count("id",filter=(Q(priority="HIGH"))),
-                  medium_priority=Count("id",filter=(Q(priority="MEDIUM"))),
-                  urgent_priority=Count("id",filter=(Q(priority="URGENT")))) 
-    
-    unassigned=Ticket.objects.aggregate(
-                  unassigned_ticket=Count("id",filter=(Q(assigned_to__isnull=True))))["unassigned_ticket"]
-    
-    avg_result = Ticket.objects.filter(status="CLOSED",closed_at__isnull=False
-                    ).annotate(result=F("closed_at") - F("created_at")
-                    ).aggregate(avg_result=Avg("result"))["avg_result"]
 
-    avg_resolution_hours = (
+    def get(self, request):
+
+        ticket_stats = Ticket.objects.aggregate(
+
+            total_ticket=Count("id"),
+            open_status=Count("id",filter=Q(status="OPEN")),
+            IN_status=Count("id",filter=Q(status="IN_PROGRESS")),
+            DONE_status=Count("id",filter=Q(status="DONE")),
+            CLOSED_status=Count("id",filter=Q(status="CLOSED")),
+            
+            low_priority=Count("id",filter=Q(priority="LOW")),
+            high_priority=Count("id",filter=Q(priority="HIGH")),
+            medium_priority=Count("id",filter=Q(priority="MEDIUM")),
+            urgent_priority=Count("id",filter=Q(priority="URGENT")),
+            unassigned_ticket=Count("id",filter=Q(assigned_to__isnull=True)),
+        )
+
+        avg_result = (Ticket.objects.filter(
+                            status="CLOSED",closed_at__isnull=False)
+                    .annotate(
+                       result=F("closed_at") - F("created_at"))
+                    .aggregate(avg_result=Avg("result"))["avg_result"])
+
+        avg_resolution_hours = (
             round(avg_result.total_seconds() / 3600, 2)
             if avg_result
             else 0
-            )
-    top_agents = (User.objects.filter(role="AGENT")
-        .annotate(count_assigned=Count("assigned_tickets", filter=Q(
-                assigned_tickets__status__in=["OPEN","IN_PROGRESS","DONE"]))
-                ).order_by("-count_assigned")
-)
-    top_agents_data = TopAgentSerializer(top_agents,many=True).data
-    
-    data = {
-            "total": total_ticket,
-            "by_status": by_status,
-            "by_priority": by_priority,
-            "unassigned": unassigned,
+        )
+
+        top_agents = (User.objects.filter(role="AGENT")
+                     .annotate(count_assigned=Count("assigned_tickets",
+                               filter=Q(
+                               assigned_tickets__status__in=["OPEN","IN_PROGRESS","DONE"]))
+                    ).order_by("-count_assigned")[:1]
+                    )
+
+        top_agents_data = TopAgentSerializer(top_agents,many=True).data
+
+        data = {
+            "total": ticket_stats["total_ticket"],
+            "by_status": {
+                "open_status": ticket_stats["open_status"],
+                "IN_status": ticket_stats["IN_status"],
+                "DONE_status": ticket_stats["DONE_status"],
+                "CLOSED_status": ticket_stats["CLOSED_status"],
+            },
+            "by_priority": {
+                "low_priority": ticket_stats["low_priority"],
+                "high_priority": ticket_stats["high_priority"],
+                "medium_priority": ticket_stats["medium_priority"],
+                "urgent_priority": ticket_stats["urgent_priority"],
+            },
+            "unassigned": ticket_stats["unassigned_ticket"],
             "avg_resolution_hours": avg_resolution_hours,
             "top_agents": top_agents_data,
         }
-    serializer=StatisticSerializer(data)
-    return Response(serializer.data,status=status.HTTP_200_OK)
 
+        serializer = StatisticSerializer(data)
+
+        return Response(serializer.data,status=status.HTTP_200_OK)
     
 class TagView(ModelViewSet):
     queryset=Tag.objects.all()
