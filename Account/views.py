@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from .models import User
 from .Serializers import RegisterSerializer,UserSerializer
+from rest_framework.generics import ListAPIView
 
 
 class RegisterView(APIView):
@@ -62,7 +63,7 @@ class RefreshView(TokenRefreshView):
 
 
 
-from rest_framework.generics import ListAPIView
+
 
 class UserListView(ListAPIView):
     queryset = User.objects.all()

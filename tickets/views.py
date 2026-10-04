@@ -32,7 +32,6 @@ class TicketViewSet(ModelViewSet):
     def get_queryset(self):
 
         user = self.request.user
-        print("User:", user.username, "Role:", user.role)
         queryset = (
             Ticket.objects
             .select_related("created_by", "assigned_to")
@@ -70,7 +69,7 @@ class TicketViewSet(ModelViewSet):
         queryset = queryset.filter(**element_search)
         
         tags = self.request.query_params.getlist("tag")
-        print("Tags:", tags)
+        
         if tags:   
             queryset = queryset.filter(
                 tags__name__in=tags
@@ -149,16 +148,6 @@ class TicketViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-
-class softdelete(ListAPIView):
-    queryset = (
-                Ticket.objects.filter(is_deleted=True) 
-            )
-    serializer_class=TicketSerializer
-    permission_classes=[TicketPermission,IsAuthenticated]
-    
-    
- 
 class ListCreateCommentView(ListCreateAPIView):
 
     serializer_class = CommentSerializer

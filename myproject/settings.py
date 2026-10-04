@@ -70,6 +70,8 @@ REST_FRAMEWORK = {
     ),
 
     "PAGE_SIZE": 10,
+    
+    "DEFAULT_SCHEMA_CLASS":"drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {

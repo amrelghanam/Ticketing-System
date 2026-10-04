@@ -17,8 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from tickets.views import TicketViewSet,ListCreateCommentView,ListCreateAttachmentView,Statistics,TagView,softdelete,HistoryTicket
-
+from tickets.views import TicketViewSet,ListCreateCommentView,ListCreateAttachmentView,Statistics,TagView,HistoryTicket
 router = DefaultRouter()
 router.register("ticket", TicketViewSet)
 router.register("tag",TagView)
@@ -31,6 +30,7 @@ urlpatterns = [
     path("api/ticket/<int:ticket_id>/comment/",ListCreateCommentView.as_view()),
     path( "api/ticket/<int:ticket_id>/attachment/", ListCreateAttachmentView.as_view()),
     path("api/tickets/stats/",Statistics.as_view()),
-    path("api/tickets/softdelete/", softdelete.as_view()),
-    path("api/ticket/<int:ticket_id>/history",HistoryTicket.as_view())
+    path("api/ticket/<int:ticket_id>/history",HistoryTicket.as_view()),
+
+
 ]
